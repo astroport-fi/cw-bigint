@@ -1,4 +1,4 @@
-use num_bigint::{BigInt, Sign, ToBigInt};
+use cw_bigint::{BigInt, Sign, ToBigInt};
 use num_traits::ToPrimitive;
 use std::{i32, i64, u32};
 

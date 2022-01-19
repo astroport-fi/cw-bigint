@@ -558,8 +558,8 @@ fn test_sub_sign() {
         BigInt::from_biguint(sign, val)
     }
 
-    let a = BigUint::from_str_radix("265252859812191058636308480000000", 10).unwrap();
-    let b = BigUint::from_str_radix("26525285981219105863630848000000", 10).unwrap();
+    let a = BigUint::from_str_radix("D13F6370F96865DF5DD54000000", 16).unwrap();
+    let b = BigUint::from_str_radix("14ECBD24E5BDA3C989622000000", 16).unwrap();
     let a_i = BigInt::from(a.clone());
     let b_i = BigInt::from(b.clone());
 

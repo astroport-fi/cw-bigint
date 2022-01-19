@@ -1,13 +1,13 @@
 [package]
 authors = ["The Rust Project Developers"]
 description = "Big integer implementation for Rust"
-documentation = "https://docs.rs/num-bigint"
-homepage = "https://github.com/rust-num/num-bigint"
+documentation = "https://docs.rs/cw-bigint"
+homepage = "https://github.com/larry0x/cw-bigint"
 keywords = ["mathematics", "numerics", "bignum"]
 categories = [ "algorithms", "data-structures", "science" ]
 license = "MIT OR Apache-2.0"
-name = "num-bigint"
-repository = "https://github.com/rust-num/num-bigint"
+name = "cw-bigint"
+repository = "https://github.com/larry0x/cw-bigint"
 version = "0.4.3"
 readme = "README.md"
 build = "build.rs"

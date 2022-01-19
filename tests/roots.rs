@@ -1,5 +1,5 @@
 mod biguint {
-    use num_bigint::BigUint;
+    use cw_bigint::BigUint;
     use num_traits::{One, Zero};
     use std::{i32, u32};
 
@@ -113,7 +113,7 @@ mod biguint {
 }
 
 mod bigint {
-    use num_bigint::BigInt;
+    use cw_bigint::BigInt;
     use num_traits::Signed;
 
     fn check(x: i64, n: u32) {

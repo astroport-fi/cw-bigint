@@ -1,19 +1,18 @@
-use num_bigint::BigUint;
-use num_bigint::Sign::{Minus, NoSign, Plus};
-use num_bigint::{BigInt, ToBigInt};
+use cw_bigint::BigUint;
+use cw_bigint::Sign::{Minus, NoSign, Plus};
+use cw_bigint::{BigInt, ToBigInt};
 
 use std::cmp::Ordering::{Equal, Greater, Less};
 use std::collections::hash_map::RandomState;
 use std::hash::{BuildHasher, Hash, Hasher};
 use std::iter::repeat;
 use std::ops::Neg;
-use std::{f32, f64};
 use std::{i128, u128};
 use std::{i16, i32, i64, i8, isize};
 use std::{u16, u32, u64, u8, usize};
 
 use num_integer::Integer;
-use num_traits::{pow, FromPrimitive, Num, One, Pow, Signed, ToPrimitive, Zero};
+use num_traits::{FromPrimitive, Num, One, Pow, Signed, ToPrimitive, Zero};
 
 mod consts;
 use crate::consts::*;
@@ -26,13 +25,13 @@ fn test_from_bytes_be() {
     fn check(s: &str, result: &str) {
         assert_eq!(
             BigInt::from_bytes_be(Plus, s.as_bytes()),
-            BigInt::parse_bytes(result.as_bytes(), 10).unwrap()
+            BigInt::parse_bytes(result.as_bytes(), 16).unwrap()
         );
     }
-    check("A", "65");
-    check("AA", "16705");
-    check("AB", "16706");
-    check("Hello world!", "22405534230753963835153736737");
+    check("A", "41");
+    check("AA", "4141");
+    check("AB", "4142");
+    check("Hello world!", "48656C6C6F20776F726C6421");
     assert_eq!(BigInt::from_bytes_be(Plus, &[]), BigInt::zero());
     assert_eq!(BigInt::from_bytes_be(Minus, &[]), BigInt::zero());
 }
@@ -40,14 +39,14 @@ fn test_from_bytes_be() {
 #[test]
 fn test_to_bytes_be() {
     fn check(s: &str, result: &str) {
-        let b = BigInt::parse_bytes(result.as_bytes(), 10).unwrap();
+        let b = BigInt::parse_bytes(result.as_bytes(), 16).unwrap();
         let (sign, v) = b.to_bytes_be();
         assert_eq!((Plus, s.as_bytes()), (sign, &*v));
     }
-    check("A", "65");
-    check("AA", "16705");
-    check("AB", "16706");
-    check("Hello world!", "22405534230753963835153736737");
+    check("A", "41");
+    check("AA", "4141");
+    check("AB", "4142");
+    check("Hello world!", "48656C6C6F20776F726C6421");
     let b: BigInt = Zero::zero();
     assert_eq!(b.to_bytes_be(), (NoSign, vec![0]));
 
@@ -61,13 +60,13 @@ fn test_from_bytes_le() {
     fn check(s: &str, result: &str) {
         assert_eq!(
             BigInt::from_bytes_le(Plus, s.as_bytes()),
-            BigInt::parse_bytes(result.as_bytes(), 10).unwrap()
+            BigInt::parse_bytes(result.as_bytes(), 16).unwrap()
         );
     }
-    check("A", "65");
-    check("AA", "16705");
-    check("BA", "16706");
-    check("!dlrow olleH", "22405534230753963835153736737");
+    check("A", "41");
+    check("AA", "4141");
+    check("BA", "4142");
+    check("!dlrow olleH", "48656C6C6F20776F726C6421");
     assert_eq!(BigInt::from_bytes_le(Plus, &[]), BigInt::zero());
     assert_eq!(BigInt::from_bytes_le(Minus, &[]), BigInt::zero());
 }
@@ -75,14 +74,14 @@ fn test_from_bytes_le() {
 #[test]
 fn test_to_bytes_le() {
     fn check(s: &str, result: &str) {
-        let b = BigInt::parse_bytes(result.as_bytes(), 10).unwrap();
+        let b = BigInt::parse_bytes(result.as_bytes(), 16).unwrap();
         let (sign, v) = b.to_bytes_le();
         assert_eq!((Plus, s.as_bytes()), (sign, &*v));
     }
-    check("A", "65");
-    check("AA", "16705");
-    check("BA", "16706");
-    check("!dlrow olleH", "22405534230753963835153736737");
+    check("A", "41");
+    check("AA", "4141");
+    check("BA", "4142");
+    check("!dlrow olleH", "48656C6C6F20776F726C6421");
     let b: BigInt = Zero::zero();
     assert_eq!(b.to_bytes_le(), (NoSign, vec![0]));
 
@@ -95,7 +94,7 @@ fn test_to_bytes_le() {
 fn test_to_signed_bytes_le() {
     fn check(s: &str, result: Vec<u8>) {
         assert_eq!(
-            BigInt::parse_bytes(s.as_bytes(), 10)
+            BigInt::parse_bytes(s.as_bytes(), 16)
                 .unwrap()
                 .to_signed_bytes_le(),
             result
@@ -103,13 +102,13 @@ fn test_to_signed_bytes_le() {
     }
 
     check("0", vec![0]);
-    check("32767", vec![0xff, 0x7f]);
+    check("7FFF", vec![0xff, 0x7f]);
     check("-1", vec![0xff]);
-    check("16777216", vec![0, 0, 0, 1]);
-    check("-100", vec![156]);
-    check("-8388608", vec![0, 0, 0x80]);
-    check("-192", vec![0x40, 0xff]);
-    check("128", vec![0x80, 0])
+    check("1000000", vec![0, 0, 0, 1]);
+    check("-64", vec![156]);
+    check("-800000", vec![0, 0, 0x80]);
+    check("-C0", vec![0x40, 0xff]);
+    check("80", vec![0x80, 0])
 }
 
 #[test]
@@ -117,27 +116,27 @@ fn test_from_signed_bytes_le() {
     fn check(s: &[u8], result: &str) {
         assert_eq!(
             BigInt::from_signed_bytes_le(s),
-            BigInt::parse_bytes(result.as_bytes(), 10).unwrap()
+            BigInt::parse_bytes(result.as_bytes(), 16).unwrap()
         );
     }
 
     check(&[], "0");
     check(&[0], "0");
     check(&[0; 10], "0");
-    check(&[0xff, 0x7f], "32767");
+    check(&[0xff, 0x7f], "7FFF");
     check(&[0xff], "-1");
-    check(&[0, 0, 0, 1], "16777216");
-    check(&[156], "-100");
-    check(&[0, 0, 0x80], "-8388608");
+    check(&[0, 0, 0, 1], "1000000");
+    check(&[156], "-64");
+    check(&[0, 0, 0x80], "-800000");
     check(&[0xff; 10], "-1");
-    check(&[0x40, 0xff], "-192");
+    check(&[0x40, 0xff], "-C0");
 }
 
 #[test]
 fn test_to_signed_bytes_be() {
     fn check(s: &str, result: Vec<u8>) {
         assert_eq!(
-            BigInt::parse_bytes(s.as_bytes(), 10)
+            BigInt::parse_bytes(s.as_bytes(), 16)
                 .unwrap()
                 .to_signed_bytes_be(),
             result
@@ -145,13 +144,13 @@ fn test_to_signed_bytes_be() {
     }
 
     check("0", vec![0]);
-    check("32767", vec![0x7f, 0xff]);
+    check("7FFF", vec![0x7f, 0xff]);
     check("-1", vec![255]);
-    check("16777216", vec![1, 0, 0, 0]);
-    check("-100", vec![156]);
-    check("-8388608", vec![128, 0, 0]);
-    check("-192", vec![0xff, 0x40]);
-    check("128", vec![0, 0x80]);
+    check("1000000", vec![1, 0, 0, 0]);
+    check("-64", vec![156]);
+    check("-800000", vec![128, 0, 0]);
+    check("-C0", vec![0xff, 0x40]);
+    check("80", vec![0, 0x80]);
 }
 
 #[test]
@@ -159,20 +158,20 @@ fn test_from_signed_bytes_be() {
     fn check(s: &[u8], result: &str) {
         assert_eq!(
             BigInt::from_signed_bytes_be(s),
-            BigInt::parse_bytes(result.as_bytes(), 10).unwrap()
+            BigInt::parse_bytes(result.as_bytes(), 16).unwrap()
         );
     }
 
     check(&[], "0");
     check(&[0], "0");
     check(&[0; 10], "0");
-    check(&[127, 255], "32767");
+    check(&[127, 255], "7FFF");
     check(&[255], "-1");
-    check(&[1, 0, 0, 0], "16777216");
-    check(&[156], "-100");
-    check(&[128, 0, 0], "-8388608");
+    check(&[1, 0, 0, 0], "1000000");
+    check(&[156], "-64");
+    check(&[128, 0, 0], "-800000");
     check(&[255; 10], "-1");
-    check(&[0xff, 0x40], "-192");
+    check(&[0xff, 0x40], "-C0");
 }
 
 #[test]
@@ -366,194 +365,6 @@ fn test_convert_u128() {
     assert_eq!(
         BigInt::from_biguint(Minus, BigUint::new(vec![1, 2, 3, 4, 5])).to_u128(),
         None
-    );
-}
-
-#[test]
-#[allow(clippy::float_cmp)]
-fn test_convert_f32() {
-    fn check(b1: &BigInt, f: f32) {
-        let b2 = BigInt::from_f32(f).unwrap();
-        assert_eq!(b1, &b2);
-        assert_eq!(b1.to_f32().unwrap(), f);
-        let neg_b1 = -b1;
-        let neg_b2 = BigInt::from_f32(-f).unwrap();
-        assert_eq!(neg_b1, neg_b2);
-        assert_eq!(neg_b1.to_f32().unwrap(), -f);
-    }
-
-    check(&BigInt::zero(), 0.0);
-    check(&BigInt::one(), 1.0);
-    check(&BigInt::from(u16::MAX), pow(2.0_f32, 16) - 1.0);
-    check(&BigInt::from(1u64 << 32), pow(2.0_f32, 32));
-    check(&BigInt::from_slice(Plus, &[0, 0, 1]), pow(2.0_f32, 64));
-    check(
-        &((BigInt::one() << 100) + (BigInt::one() << 123)),
-        pow(2.0_f32, 100) + pow(2.0_f32, 123),
-    );
-    check(&(BigInt::one() << 127), pow(2.0_f32, 127));
-    check(&(BigInt::from((1u64 << 24) - 1) << (128 - 24)), f32::MAX);
-
-    // keeping all 24 digits with the bits at different offsets to the BigDigits
-    let x: u32 = 0b00000000101111011111011011011101;
-    let mut f = x as f32;
-    let mut b = BigInt::from(x);
-    for _ in 0..64 {
-        check(&b, f);
-        f *= 2.0;
-        b <<= 1;
-    }
-
-    // this number when rounded to f64 then f32 isn't the same as when rounded straight to f32
-    let mut n: i64 = 0b0000000000111111111111111111111111011111111111111111111111111111;
-    assert!((n as f64) as f32 != n as f32);
-    assert_eq!(BigInt::from(n).to_f32(), Some(n as f32));
-    n = -n;
-    assert!((n as f64) as f32 != n as f32);
-    assert_eq!(BigInt::from(n).to_f32(), Some(n as f32));
-
-    // test rounding up with the bits at different offsets to the BigDigits
-    let mut f = ((1u64 << 25) - 1) as f32;
-    let mut b = BigInt::from(1u64 << 25);
-    for _ in 0..64 {
-        assert_eq!(b.to_f32(), Some(f));
-        f *= 2.0;
-        b <<= 1;
-    }
-
-    // rounding
-    assert_eq!(
-        BigInt::from_f32(-f32::consts::PI),
-        Some(BigInt::from(-3i32))
-    );
-    assert_eq!(BigInt::from_f32(-f32::consts::E), Some(BigInt::from(-2i32)));
-    assert_eq!(BigInt::from_f32(-0.99999), Some(BigInt::zero()));
-    assert_eq!(BigInt::from_f32(-0.5), Some(BigInt::zero()));
-    assert_eq!(BigInt::from_f32(-0.0), Some(BigInt::zero()));
-    assert_eq!(
-        BigInt::from_f32(f32::MIN_POSITIVE / 2.0),
-        Some(BigInt::zero())
-    );
-    assert_eq!(BigInt::from_f32(f32::MIN_POSITIVE), Some(BigInt::zero()));
-    assert_eq!(BigInt::from_f32(0.5), Some(BigInt::zero()));
-    assert_eq!(BigInt::from_f32(0.99999), Some(BigInt::zero()));
-    assert_eq!(BigInt::from_f32(f32::consts::E), Some(BigInt::from(2u32)));
-    assert_eq!(BigInt::from_f32(f32::consts::PI), Some(BigInt::from(3u32)));
-
-    // special float values
-    assert_eq!(BigInt::from_f32(f32::NAN), None);
-    assert_eq!(BigInt::from_f32(f32::INFINITY), None);
-    assert_eq!(BigInt::from_f32(f32::NEG_INFINITY), None);
-
-    // largest BigInt that will round to a finite f32 value
-    let big_num = (BigInt::one() << 128u8) - 1u8 - (BigInt::one() << (128u8 - 25));
-    assert_eq!(big_num.to_f32(), Some(f32::MAX));
-    assert_eq!((&big_num + 1u8).to_f32(), Some(f32::INFINITY));
-    assert_eq!((-&big_num).to_f32(), Some(f32::MIN));
-    assert_eq!(((-&big_num) - 1u8).to_f32(), Some(f32::NEG_INFINITY));
-
-    assert_eq!(
-        ((BigInt::one() << 128u8) - 1u8).to_f32(),
-        Some(f32::INFINITY)
-    );
-    assert_eq!((BigInt::one() << 128u8).to_f32(), Some(f32::INFINITY));
-    assert_eq!(
-        (-((BigInt::one() << 128u8) - 1u8)).to_f32(),
-        Some(f32::NEG_INFINITY)
-    );
-    assert_eq!(
-        (-(BigInt::one() << 128u8)).to_f32(),
-        Some(f32::NEG_INFINITY)
-    );
-}
-
-#[test]
-#[allow(clippy::float_cmp)]
-fn test_convert_f64() {
-    fn check(b1: &BigInt, f: f64) {
-        let b2 = BigInt::from_f64(f).unwrap();
-        assert_eq!(b1, &b2);
-        assert_eq!(b1.to_f64().unwrap(), f);
-        let neg_b1 = -b1;
-        let neg_b2 = BigInt::from_f64(-f).unwrap();
-        assert_eq!(neg_b1, neg_b2);
-        assert_eq!(neg_b1.to_f64().unwrap(), -f);
-    }
-
-    check(&BigInt::zero(), 0.0);
-    check(&BigInt::one(), 1.0);
-    check(&BigInt::from(u32::MAX), pow(2.0_f64, 32) - 1.0);
-    check(&BigInt::from(1u64 << 32), pow(2.0_f64, 32));
-    check(&BigInt::from_slice(Plus, &[0, 0, 1]), pow(2.0_f64, 64));
-    check(
-        &((BigInt::one() << 100) + (BigInt::one() << 152)),
-        pow(2.0_f64, 100) + pow(2.0_f64, 152),
-    );
-    check(&(BigInt::one() << 1023), pow(2.0_f64, 1023));
-    check(&(BigInt::from((1u64 << 53) - 1) << (1024 - 53)), f64::MAX);
-
-    // keeping all 53 digits with the bits at different offsets to the BigDigits
-    let x: u64 = 0b0000000000011110111110110111111101110111101111011111011011011101;
-    let mut f = x as f64;
-    let mut b = BigInt::from(x);
-    for _ in 0..128 {
-        check(&b, f);
-        f *= 2.0;
-        b <<= 1;
-    }
-
-    // test rounding up with the bits at different offsets to the BigDigits
-    let mut f = ((1u64 << 54) - 1) as f64;
-    let mut b = BigInt::from(1u64 << 54);
-    for _ in 0..128 {
-        assert_eq!(b.to_f64(), Some(f));
-        f *= 2.0;
-        b <<= 1;
-    }
-
-    // rounding
-    assert_eq!(
-        BigInt::from_f64(-f64::consts::PI),
-        Some(BigInt::from(-3i32))
-    );
-    assert_eq!(BigInt::from_f64(-f64::consts::E), Some(BigInt::from(-2i32)));
-    assert_eq!(BigInt::from_f64(-0.99999), Some(BigInt::zero()));
-    assert_eq!(BigInt::from_f64(-0.5), Some(BigInt::zero()));
-    assert_eq!(BigInt::from_f64(-0.0), Some(BigInt::zero()));
-    assert_eq!(
-        BigInt::from_f64(f64::MIN_POSITIVE / 2.0),
-        Some(BigInt::zero())
-    );
-    assert_eq!(BigInt::from_f64(f64::MIN_POSITIVE), Some(BigInt::zero()));
-    assert_eq!(BigInt::from_f64(0.5), Some(BigInt::zero()));
-    assert_eq!(BigInt::from_f64(0.99999), Some(BigInt::zero()));
-    assert_eq!(BigInt::from_f64(f64::consts::E), Some(BigInt::from(2u32)));
-    assert_eq!(BigInt::from_f64(f64::consts::PI), Some(BigInt::from(3u32)));
-
-    // special float values
-    assert_eq!(BigInt::from_f64(f64::NAN), None);
-    assert_eq!(BigInt::from_f64(f64::INFINITY), None);
-    assert_eq!(BigInt::from_f64(f64::NEG_INFINITY), None);
-
-    // largest BigInt that will round to a finite f64 value
-    let big_num = (BigInt::one() << 1024u16) - 1u8 - (BigInt::one() << (1024u16 - 54));
-    assert_eq!(big_num.to_f64(), Some(f64::MAX));
-    assert_eq!((&big_num + 1u8).to_f64(), Some(f64::INFINITY));
-    assert_eq!((-&big_num).to_f64(), Some(f64::MIN));
-    assert_eq!(((-&big_num) - 1u8).to_f64(), Some(f64::NEG_INFINITY));
-
-    assert_eq!(
-        ((BigInt::one() << 1024u16) - 1u8).to_f64(),
-        Some(f64::INFINITY)
-    );
-    assert_eq!((BigInt::one() << 1024u16).to_f64(), Some(f64::INFINITY));
-    assert_eq!(
-        (-((BigInt::one() << 1024u16) - 1u8)).to_f64(),
-        Some(f64::NEG_INFINITY)
-    );
-    assert_eq!(
-        (-(BigInt::one() << 1024u16)).to_f64(),
-        Some(f64::NEG_INFINITY)
     );
 }
 
@@ -1131,33 +942,26 @@ fn test_from_str_radix() {
             let x: BigInt = FromPrimitive::from_isize(n).unwrap();
             x
         });
-        assert_eq!(BigInt::from_str_radix(s, 10).ok(), ans);
+        assert_eq!(BigInt::from_str_radix(s, 16).ok(), ans);
     }
-    check("10", Some(10));
+    check("A", Some(10));
     check("1", Some(1));
     check("0", Some(0));
     check("-1", Some(-1));
-    check("-10", Some(-10));
-    check("+10", Some(10));
+    check("-A", Some(-10));
+    check("+A", Some(10));
     check("--7", None);
     check("++5", None);
     check("+-9", None);
     check("-+3", None);
     check("Z", None);
     check("_", None);
-
-    // issue 10522, this hit an edge case that caused it to
-    // attempt to allocate a vector of size (-1u) == huge.
-    let x: BigInt = format!("1{}", repeat("0").take(36).collect::<String>())
-        .parse()
-        .unwrap();
-    let _y = x.to_string();
 }
 
 #[test]
 fn test_lower_hex() {
     let a = BigInt::parse_bytes(b"A", 16).unwrap();
-    let hello = BigInt::parse_bytes(b"-22405534230753963835153736737", 10).unwrap();
+    let hello = BigInt::parse_bytes(b"-48656C6C6F20776F726C6421", 16).unwrap();
 
     assert_eq!(format!("{:x}", a), "a");
     assert_eq!(format!("{:x}", hello), "-48656c6c6f20776f726c6421");
@@ -1167,7 +971,7 @@ fn test_lower_hex() {
 #[test]
 fn test_upper_hex() {
     let a = BigInt::parse_bytes(b"A", 16).unwrap();
-    let hello = BigInt::parse_bytes(b"-22405534230753963835153736737", 10).unwrap();
+    let hello = BigInt::parse_bytes(b"-48656C6C6F20776F726C6421", 16).unwrap();
 
     assert_eq!(format!("{:X}", a), "A");
     assert_eq!(format!("{:X}", hello), "-48656C6C6F20776F726C6421");
@@ -1177,7 +981,7 @@ fn test_upper_hex() {
 #[test]
 fn test_binary() {
     let a = BigInt::parse_bytes(b"A", 16).unwrap();
-    let hello = BigInt::parse_bytes(b"-224055342307539", 10).unwrap();
+    let hello = BigInt::parse_bytes(b"-CBC6F31698D3", 16).unwrap();
 
     assert_eq!(format!("{:b}", a), "1010");
     assert_eq!(
@@ -1190,7 +994,7 @@ fn test_binary() {
 #[test]
 fn test_octal() {
     let a = BigInt::parse_bytes(b"A", 16).unwrap();
-    let hello = BigInt::parse_bytes(b"-22405534230753963835153736737", 10).unwrap();
+    let hello = BigInt::parse_bytes(b"-48656C6C6F20776F726C6421", 16).unwrap();
 
     assert_eq!(format!("{:o}", a), "12");
     assert_eq!(format!("{:o}", hello), "-22062554330674403566756233062041");
@@ -1200,11 +1004,11 @@ fn test_octal() {
 #[test]
 fn test_display() {
     let a = BigInt::parse_bytes(b"A", 16).unwrap();
-    let hello = BigInt::parse_bytes(b"-22405534230753963835153736737", 10).unwrap();
+    let hello = BigInt::parse_bytes(b"-48656C6C6F20776F726C6421", 16).unwrap();
 
-    assert_eq!(format!("{}", a), "10");
-    assert_eq!(format!("{}", hello), "-22405534230753963835153736737");
-    assert_eq!(format!("{:♥>+#8}", a), "♥♥♥♥♥+10");
+    assert_eq!(format!("{}", a), "A");
+    assert_eq!(format!("{}", hello), "-48656C6C6F20776F726C6421");
+    assert_eq!(format!("{:♥>+#8}", a), "♥♥♥♥♥♥+A");
 }
 
 #[test]

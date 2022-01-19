@@ -1,22 +1,16 @@
 use super::{biguint_from_vec, BigUint, ToBigUint};
 
-use super::addition::add2;
-use super::division::div_rem_digit;
-use super::multiplication::mac_with_carry;
-
 use crate::big_digit::{self, BigDigit};
 use crate::std_alloc::Vec;
 use crate::ParseBigIntError;
 #[cfg(has_try_from)]
 use crate::TryFromBigIntError;
 
-use core::cmp::Ordering::{Equal, Greater, Less};
 #[cfg(has_try_from)]
 use core::convert::TryFrom;
 use core::mem;
 use core::str::FromStr;
-use num_integer::{Integer, Roots};
-use num_traits::float::FloatCore;
+use num_integer::Integer;
 use num_traits::{FromPrimitive, Num, PrimInt, ToPrimitive, Zero};
 
 /// Find last set bit
@@ -97,59 +91,9 @@ fn from_inexact_bitwise_digits_le(v: &[u8], bits: u8) -> BigUint {
     biguint_from_vec(data)
 }
 
-// Read little-endian radix digits
-fn from_radix_digits_be(v: &[u8], radix: u32) -> BigUint {
-    debug_assert!(!v.is_empty() && !radix.is_power_of_two());
-    debug_assert!(v.iter().all(|&c| u32::from(c) < radix));
-
-    #[cfg(feature = "std")]
-    let radix_log2 = f64::from(radix).log2();
-    #[cfg(not(feature = "std"))]
-    let radix_log2 = ilog2(radix.next_power_of_two()) as f64;
-
-    // Estimate how big the result will be, so we can pre-allocate it.
-    let bits = radix_log2 * v.len() as f64;
-    let big_digits = (bits / big_digit::BITS as f64).ceil();
-    let mut data = Vec::with_capacity(big_digits.to_usize().unwrap_or(0));
-
-    let (base, power) = get_radix_base(radix, big_digit::BITS);
-    let radix = radix as BigDigit;
-
-    let r = v.len() % power;
-    let i = if r == 0 { power } else { r };
-    let (head, tail) = v.split_at(i);
-
-    let first = head
-        .iter()
-        .fold(0, |acc, &d| acc * radix + BigDigit::from(d));
-    data.push(first);
-
-    debug_assert!(tail.len() % power == 0);
-    for chunk in tail.chunks(power) {
-        if data.last() != Some(&0) {
-            data.push(0);
-        }
-
-        let mut carry = 0;
-        for d in data.iter_mut() {
-            *d = mac_with_carry(0, *d, base, &mut carry);
-        }
-        debug_assert!(carry == 0);
-
-        let n = chunk
-            .iter()
-            .fold(0, |acc, &d| acc * radix + BigDigit::from(d));
-        add2(&mut data, &[n]);
-    }
-
-    biguint_from_vec(data)
-}
-
 pub(super) fn from_radix_be(buf: &[u8], radix: u32) -> Option<BigUint> {
-    assert!(
-        2 <= radix && radix <= 256,
-        "The radix must be within 2...256"
-    );
+    assert!(2 <= radix && radix <= 256, "The radix must be within 2...256");
+    assert!(radix.is_power_of_two(), "The radix must be a power of 2");
 
     if buf.is_empty() {
         return Some(Zero::zero());
@@ -159,7 +103,7 @@ pub(super) fn from_radix_be(buf: &[u8], radix: u32) -> Option<BigUint> {
         return None;
     }
 
-    let res = if radix.is_power_of_two() {
+    let res = {
         // Powers of two can use bitwise masks and shifting instead of multiplication
         let bits = ilog2(radix);
         let mut v = Vec::from(buf);
@@ -169,18 +113,14 @@ pub(super) fn from_radix_be(buf: &[u8], radix: u32) -> Option<BigUint> {
         } else {
             from_inexact_bitwise_digits_le(&v, bits)
         }
-    } else {
-        from_radix_digits_be(buf, radix)
     };
 
     Some(res)
 }
 
 pub(super) fn from_radix_le(buf: &[u8], radix: u32) -> Option<BigUint> {
-    assert!(
-        2 <= radix && radix <= 256,
-        "The radix must be within 2...256"
-    );
+    assert!(2 <= radix && radix <= 256, "The radix must be within 2...256");
+    assert!(radix.is_power_of_two(), "The radix must be a power of 2");
 
     if buf.is_empty() {
         return Some(Zero::zero());
@@ -190,7 +130,7 @@ pub(super) fn from_radix_le(buf: &[u8], radix: u32) -> Option<BigUint> {
         return None;
     }
 
-    let res = if radix.is_power_of_two() {
+    let res = {
         // Powers of two can use bitwise masks and shifting instead of multiplication
         let bits = ilog2(radix);
         if big_digit::BITS % bits == 0 {
@@ -198,10 +138,6 @@ pub(super) fn from_radix_le(buf: &[u8], radix: u32) -> Option<BigUint> {
         } else {
             from_inexact_bitwise_digits_le(buf, bits)
         }
-    } else {
-        let mut v = Vec::from(buf);
-        v.reverse();
-        from_radix_digits_be(&v, radix)
     };
 
     Some(res)
@@ -213,6 +149,8 @@ impl Num for BigUint {
     /// Creates and initializes a `BigUint`.
     fn from_str_radix(s: &str, radix: u32) -> Result<BigUint, ParseBigIntError> {
         assert!(2 <= radix && radix <= 36, "The radix must be within 2...36");
+        assert!(radix.is_power_of_two(), "The radix must be a power of 2");
+
         let mut s = s;
         if s.starts_with('+') {
             let tail = &s[1..];
@@ -247,7 +185,7 @@ impl Num for BigUint {
             }
         }
 
-        let res = if radix.is_power_of_two() {
+        let res = {
             // Powers of two can use bitwise masks and shifting instead of multiplication
             let bits = ilog2(radix);
             v.reverse();
@@ -256,48 +194,8 @@ impl Num for BigUint {
             } else {
                 from_inexact_bitwise_digits_le(&v, bits)
             }
-        } else {
-            from_radix_digits_be(&v, radix)
         };
         Ok(res)
-    }
-}
-
-fn high_bits_to_u64(v: &BigUint) -> u64 {
-    match v.data.len() {
-        0 => 0,
-        1 => {
-            // XXX Conversion is useless if already 64-bit.
-            #[allow(clippy::useless_conversion)]
-            let v0 = u64::from(v.data[0]);
-            v0
-        }
-        _ => {
-            let mut bits = v.bits();
-            let mut ret = 0u64;
-            let mut ret_bits = 0;
-
-            for d in v.data.iter().rev() {
-                let digit_bits = (bits - 1) % u64::from(big_digit::BITS) + 1;
-                let bits_want = Ord::min(64 - ret_bits, digit_bits);
-
-                if bits_want != 64 {
-                    ret <<= bits_want;
-                }
-                // XXX Conversion is useless if already 64-bit.
-                #[allow(clippy::useless_conversion)]
-                let d0 = u64::from(*d) >> (digit_bits - bits_want);
-                ret |= d0;
-                ret_bits += bits_want;
-                bits -= bits_want;
-
-                if ret_bits == 64 {
-                    break;
-                }
-            }
-
-            ret
-        }
     }
 }
 
@@ -346,30 +244,6 @@ impl ToPrimitive for BigUint {
         }
 
         Some(ret)
-    }
-
-    #[inline]
-    fn to_f32(&self) -> Option<f32> {
-        let mantissa = high_bits_to_u64(self);
-        let exponent = self.bits() - u64::from(fls(mantissa));
-
-        if exponent > core::f32::MAX_EXP as u64 {
-            Some(core::f32::INFINITY)
-        } else {
-            Some((mantissa as f32) * 2.0f32.powi(exponent as i32))
-        }
-    }
-
-    #[inline]
-    fn to_f64(&self) -> Option<f64> {
-        let mantissa = high_bits_to_u64(self);
-        let exponent = self.bits() - u64::from(fls(mantissa));
-
-        if exponent > core::f64::MAX_EXP as u64 {
-            Some(core::f64::INFINITY)
-        } else {
-            Some((mantissa as f64) * 2.0f64.powi(exponent as i32))
-        }
     }
 }
 
@@ -438,36 +312,6 @@ impl FromPrimitive for BigUint {
     #[inline]
     fn from_u128(n: u128) -> Option<BigUint> {
         Some(BigUint::from(n))
-    }
-
-    #[inline]
-    fn from_f64(mut n: f64) -> Option<BigUint> {
-        // handle NAN, INFINITY, NEG_INFINITY
-        if !n.is_finite() {
-            return None;
-        }
-
-        // match the rounding of casting from float to int
-        n = n.trunc();
-
-        // handle 0.x, -0.x
-        if n.is_zero() {
-            return Some(BigUint::zero());
-        }
-
-        let (mantissa, exponent, sign) = FloatCore::integer_decode(n);
-
-        if sign == -1 {
-            return None;
-        }
-
-        let mut ret = BigUint::from(mantissa);
-        match exponent.cmp(&0) {
-            Greater => ret <<= exponent as usize,
-            Equal => {}
-            Less => ret >>= (-exponent) as usize,
-        }
-        Some(ret)
     }
 }
 
@@ -569,9 +413,6 @@ impl_to_biguint!(u32, FromPrimitive::from_u32);
 impl_to_biguint!(u64, FromPrimitive::from_u64);
 impl_to_biguint!(u128, FromPrimitive::from_u128);
 
-impl_to_biguint!(f32, FromPrimitive::from_f32);
-impl_to_biguint!(f64, FromPrimitive::from_f64);
-
 // Extract bitwise digits that evenly divide BigDigit
 pub(super) fn to_bitwise_digits_le(u: &BigUint, bits: u8) -> Vec<u8> {
     debug_assert!(!u.is_zero() && bits <= 8 && big_digit::BITS % bits == 0);
@@ -641,80 +482,11 @@ fn to_inexact_bitwise_digits_le(u: &BigUint, bits: u8) -> Vec<u8> {
     res
 }
 
-// Extract little-endian radix digits
-#[inline(always)] // forced inline to get const-prop for radix=10
-pub(super) fn to_radix_digits_le(u: &BigUint, radix: u32) -> Vec<u8> {
-    debug_assert!(!u.is_zero() && !radix.is_power_of_two());
-
-    #[cfg(feature = "std")]
-    let radix_log2 = f64::from(radix).log2();
-    #[cfg(not(feature = "std"))]
-    let radix_log2 = ilog2(radix) as f64;
-
-    // Estimate how big the result will be, so we can pre-allocate it.
-    let radix_digits = ((u.bits() as f64) / radix_log2).ceil();
-    let mut res = Vec::with_capacity(radix_digits.to_usize().unwrap_or(0));
-
-    let mut digits = u.clone();
-
-    let (base, power) = get_radix_base(radix, big_digit::HALF_BITS);
-    let radix = radix as BigDigit;
-
-    // For very large numbers, the O(n²) loop of repeated `div_rem_digit` dominates the
-    // performance. We can mitigate this by dividing into chunks of a larger base first.
-    // The threshold for this was chosen by anecdotal performance measurements to
-    // approximate where this starts to make a noticeable difference.
-    if digits.data.len() >= 64 {
-        let mut big_base = BigUint::from(base * base);
-        let mut big_power = 2usize;
-
-        // Choose a target base length near √n.
-        let target_len = digits.data.len().sqrt();
-        while big_base.data.len() < target_len {
-            big_base = &big_base * &big_base;
-            big_power *= 2;
-        }
-
-        // This outer loop will run approximately √n times.
-        while digits > big_base {
-            // This is still the dominating factor, with n digits divided by √n digits.
-            let (q, mut big_r) = digits.div_rem(&big_base);
-            digits = q;
-
-            // This inner loop now has O(√n²)=O(n) behavior altogether.
-            for _ in 0..big_power {
-                let (q, mut r) = div_rem_digit(big_r, base);
-                big_r = q;
-                for _ in 0..power {
-                    res.push((r % radix) as u8);
-                    r /= radix;
-                }
-            }
-        }
-    }
-
-    while digits.data.len() > 1 {
-        let (q, mut r) = div_rem_digit(digits, base);
-        for _ in 0..power {
-            res.push((r % radix) as u8);
-            r /= radix;
-        }
-        digits = q;
-    }
-
-    let mut r = digits.data[0];
-    while r != 0 {
-        res.push((r % radix) as u8);
-        r /= radix;
-    }
-
-    res
-}
-
 pub(super) fn to_radix_le(u: &BigUint, radix: u32) -> Vec<u8> {
+    assert!(radix.is_power_of_two(), "The radix must be a power of 2");
     if u.is_zero() {
         vec![0]
-    } else if radix.is_power_of_two() {
+    } else {
         // Powers of two can use bitwise masks and shifting instead of division
         let bits = ilog2(radix);
         if big_digit::BITS % bits == 0 {
@@ -722,12 +494,6 @@ pub(super) fn to_radix_le(u: &BigUint, radix: u32) -> Vec<u8> {
         } else {
             to_inexact_bitwise_digits_le(u, bits)
         }
-    } else if radix == 10 {
-        // 10 is so common that it's worth separating out for const-propagation.
-        // Optimizers can often turn constant division into a faster multiplication.
-        to_radix_digits_le(u, 10)
-    } else {
-        to_radix_digits_le(u, radix)
     }
 }
 
@@ -750,35 +516,4 @@ pub(crate) fn to_str_radix_reversed(u: &BigUint, radix: u32) -> Vec<u8> {
         }
     }
     res
-}
-
-/// Returns the greatest power of the radix for the given bit size
-#[inline]
-fn get_radix_base(radix: u32, bits: u8) -> (BigDigit, usize) {
-    mod gen {
-        include! { concat!(env!("OUT_DIR"), "/radix_bases.rs") }
-    }
-
-    debug_assert!(
-        2 <= radix && radix <= 256,
-        "The radix must be within 2...256"
-    );
-    debug_assert!(!radix.is_power_of_two());
-    debug_assert!(bits <= big_digit::BITS);
-
-    match bits {
-        16 => {
-            let (base, power) = gen::BASES_16[radix as usize];
-            (base as BigDigit, power)
-        }
-        32 => {
-            let (base, power) = gen::BASES_32[radix as usize];
-            (base as BigDigit, power)
-        }
-        64 => {
-            let (base, power) = gen::BASES_64[radix as usize];
-            (base as BigDigit, power)
-        }
-        _ => panic!("Invalid bigdigit size"),
-    }
 }

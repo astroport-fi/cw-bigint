@@ -53,7 +53,7 @@ static BIG_R: &str = "\
                       109c4735_6e7db425_7b5d74c7_0b709508";
 
 mod biguint {
-    use num_bigint::BigUint;
+    use cw_bigint::BigUint;
     use num_integer::Integer;
     use num_traits::Num;
 
@@ -109,7 +109,7 @@ mod biguint {
 }
 
 mod bigint {
-    use num_bigint::BigInt;
+    use cw_bigint::BigInt;
     use num_integer::Integer;
     use num_traits::{Num, One, Signed};
 

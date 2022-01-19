@@ -1,6 +1,6 @@
 //! Check buggy inputs that were found by fuzzing
 
-use num_bigint::BigUint;
+use cw_bigint::BigUint;
 use num_traits::Num;
 
 #[test]

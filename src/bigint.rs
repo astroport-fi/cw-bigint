@@ -144,7 +144,11 @@ impl fmt::Debug for BigInt {
 
 impl fmt::Display for BigInt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.pad_integral(!self.is_negative(), "", &self.data.to_str_radix(10))
+        f.pad_integral(
+            !self.is_negative(), 
+            "", 
+            &self.data.to_str_radix(16).to_ascii_uppercase()
+        )
     }
 }
 

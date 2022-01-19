@@ -1,5 +1,5 @@
-use num_bigint::BigInt;
-use num_bigint::Sign::Plus;
+use cw_bigint::BigInt;
+use cw_bigint::Sign::Plus;
 use num_traits::{One, Signed, ToPrimitive, Zero};
 
 use std::ops::Neg;
